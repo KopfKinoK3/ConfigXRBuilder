@@ -1,0 +1,144 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Config-XR Generator 0.1.0</title>
+    <script src="Main.js"></script>
+</head>
+
+<body>
+<div id="editor"></div>
+
+<script>
+  var app = Elm.Main.init({
+    node: document.getElementById('editor'),
+    flags : {
+      width : window.innerWidth,
+      height : window.innerHeight
+      }
+  });
+
+  const fs = window.__TAURI__.fs
+  const clipboard = window.__TAURI__.clipboard
+  const shell = window.__TAURI__.shell
+
+  const docPath = '/Users/tkumlehn/Documents/configdocs'
+
+    /// GET FILE
+
+  const fetchDocumentByFileName = (fileName) => {
+    const filePath = docPath + "/" + fileName
+    return readTextFile(filePath, {})
+      .then(str => app.ports.infoForElm.send({tag: "GotFile", data: { fileName: fileName, content: str } }))
+  }
+
+  console.log("Im OK!")
+
+  /*
+  function getManifest() {
+
+    const path = docPath + '/manifest.yaml'
+
+    const sendManifest = (value) => app.ports.infoForElm.send({tag: "GotFileList", data:  load(value)})
+
+    return readTextFile(path,  {}).then(value => sendManifest(value))
+  }
+  */
+  
+  /*
+  function writeMetadata(document) {
+
+      const pathToManifest = docPath + '/manifest.yaml'
+
+      const metadata = { fileName: document.fileName, id: document.id}
+
+      // s and t are metadata: source and target
+      const changeMetadata = (s, t ) =>
+        s.id == t.id ?  Object.assign({}, s) : t
+
+      // Update the item in the manifest m with id == s.id with the value s
+      const updateManifest = (s, m) => m.map((t) => changeMetadata(s, t))
+
+      readTextFile(pathToManifest,  {})
+          .then(value => load(value))
+          .then(m => updateManifest(metadata, m))
+          .then(m => safeDump(m))
+          .then(contents => fs.writeFile({path: pathToManifest, contents: contents}))
+
+  }
+
+  function createFile(document) {
+
+      const metadata = {fileName: document.fileName, id: document.id}
+
+      const pathToManifest = docPath + '/manifest.yaml'
+
+      writeFile_(document)
+
+      const append = (item, array) => {
+
+        array.push(item)
+
+        return array
+        }
+
+      readTextFile(pathToManifest,  {})
+          .then(value => load(value))
+          .then(m => append(metadata, m))
+          .then(m => safeDump(m))
+          .then(contents => fs.writeFile({path: pathToManifest, contents: contents}))
+
+  }
+
+  function getFileFromLocalStorage(fileName) {
+      return JSON.parse(localStorage.getItem(fileName))
+  }
+  */
+
+  app.ports.infoForOutside.subscribe(msg => {
+    switch(msg.tag) {
+
+        case "AskForClipBoard":
+            clipboard.readText()
+              .then(text => {
+                app.ports.infoForElm.send({tag: "GotClipboard", data: text})
+              })
+              .catch(err => {
+                console.error('!JS! Failed to read clipboard: ', err);
+              });
+            break;
+
+        case "WriteToClipboard":
+            clipboard.writeText(JSON.stringify(msg.data))
+            break;
+  
+        case "AskForFile":
+            fs.readTextFile(docPath+'/'+msg.data, {})
+              .then(str => { 
+                app.ports.infoForElm.send({tag: "GotFile", data: { fileName: msg.data, content: str } }) 
+              })
+            break;
+
+        case "WriteFile":
+            fs.writeFile({path: docPath + '/' + msg.data.fileName, contents: msg.data.content})
+            break;
+
+        //case "Convert":
+        //    const usdc = msg.data.fileName.replace('.usda', '.usdc')
+        //    const usdz = msg.data.fileName.replace('.usda', '.usdz')
+        //    //const outputCrate = await 
+        //    new shell.Command('usdcat', ['-o ' + docPath + '/' + usdc, docPath + '/' + msg.data.fileName]).execute()
+        //    //const outputAcii  = await new shell.Command('usdcat', ['-o', docPath + '/' + msg.data.fileName, docPath + '/' + usdc]).execute()
+        //    //const outputAcii  = await new shell.Command('usdzip', [docPath + '/' + usdz, docPath + '/' + usdc]).execute()
+        //    //shell.open(docPath + '/' + usdz, 'Preview')
+        //    break;
+    }
+  })
+
+</script>
+
+<!--script src="outside.js"></script-->
+
+</body>
+
+</html>
