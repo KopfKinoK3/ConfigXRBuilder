@@ -10,7 +10,11 @@ module Document exposing
 
 type DocType
     = ConfigJSON
-    | UsdAscii
+    | HtmlDoc
+    | JpegDoc
+    | PngDoc
+    | RealityDoc
+    | UsdzDoc
 
 
 type alias Document =
@@ -36,11 +40,12 @@ new data =
     let
         ext =
             case data.docType of
-                ConfigJSON ->
-                    ".cfg"
-
-                UsdAscii ->
-                    ".usda"
+                ConfigJSON ->   ".cfg"
+                HtmlDoc ->      ".html"
+                UsdzDoc ->      ".usdz"
+                RealityDoc ->   ".reality"
+                JpegDoc ->      ".jpg"
+                PngDoc ->       ".png"
 
         fileName =
             data.fileName ++ ext

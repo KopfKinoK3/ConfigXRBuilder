@@ -24,76 +24,11 @@
 
   const docPath = '/Users/tkumlehn/Documents/configdocs'
 
-    /// GET FILE
-
   const fetchDocumentByFileName = (fileName) => {
     const filePath = docPath + "/" + fileName
     return readTextFile(filePath, {})
       .then(str => app.ports.infoForElm.send({tag: "GotFile", data: { fileName: fileName, content: str } }))
   }
-
-  console.log("Im OK!")
-
-  /*
-  function getManifest() {
-
-    const path = docPath + '/manifest.yaml'
-
-    const sendManifest = (value) => app.ports.infoForElm.send({tag: "GotFileList", data:  load(value)})
-
-    return readTextFile(path,  {}).then(value => sendManifest(value))
-  }
-  */
-  
-  /*
-  function writeMetadata(document) {
-
-      const pathToManifest = docPath + '/manifest.yaml'
-
-      const metadata = { fileName: document.fileName, id: document.id}
-
-      // s and t are metadata: source and target
-      const changeMetadata = (s, t ) =>
-        s.id == t.id ?  Object.assign({}, s) : t
-
-      // Update the item in the manifest m with id == s.id with the value s
-      const updateManifest = (s, m) => m.map((t) => changeMetadata(s, t))
-
-      readTextFile(pathToManifest,  {})
-          .then(value => load(value))
-          .then(m => updateManifest(metadata, m))
-          .then(m => safeDump(m))
-          .then(contents => fs.writeFile({path: pathToManifest, contents: contents}))
-
-  }
-
-  function createFile(document) {
-
-      const metadata = {fileName: document.fileName, id: document.id}
-
-      const pathToManifest = docPath + '/manifest.yaml'
-
-      writeFile_(document)
-
-      const append = (item, array) => {
-
-        array.push(item)
-
-        return array
-        }
-
-      readTextFile(pathToManifest,  {})
-          .then(value => load(value))
-          .then(m => append(metadata, m))
-          .then(m => safeDump(m))
-          .then(contents => fs.writeFile({path: pathToManifest, contents: contents}))
-
-  }
-
-  function getFileFromLocalStorage(fileName) {
-      return JSON.parse(localStorage.getItem(fileName))
-  }
-  */
 
   app.ports.infoForOutside.subscribe(msg => {
     switch(msg.tag) {

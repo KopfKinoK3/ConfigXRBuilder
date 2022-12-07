@@ -1,0 +1,72 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <meta name="description" content="AR Produkt-Konfigurator. Wir demonstrieren das weltweit erste Zusammenspiel zwischen einer Web-App und einer AR Quick Look Szene.">
+    <meta name="application-name" content="K3 - AR Konfigurator Demo">
+    <title>K3 - AR Konfigurator Demo</title>
+    <meta name="keywords" content="AR Quick Look, Produktkonfigurator, eCommerce">
+
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="AR Produkt-Konfigurator. Wir demonstrieren das weltweit erste Zusammenspiel zwischen einer Web-App und einer AR Quick Look Szene.">
+    <meta name="twitter:site" content="@kreativekk">
+    <meta name="twitter:creator" content="@kreativekk">
+    <meta name="twitter:image" content=""> <!-- 2:1 ab 300x157 -->
+
+    <script src="Sofa.js"></script>
+    <style>
+      /* For the "inset" look only */
+      /* html { overflow: hidden; } */
+      body { padding: 0; margin: 0; }
+      /* For older Firefox */
+      scrollbar, scrollbarbutton, scrollcorner { -moz-appearance: none !important; }
+
+      ::-webkit-scrollbar { width: 6px; }
+
+      /* Track */
+      ::-webkit-scrollbar-track {
+          -webkit-box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
+          -webkit-border-radius: 6px;
+          box-shadow: inset 0 0 2px rgba(0,0,0,0.3);
+          border-radius: 6px;
+      }
+
+      /* Handle */
+      ::-webkit-scrollbar-thumb {
+          -webkit-border-radius: 10px;
+          border-radius: 10px;
+          background: rgba(180,180,180,0.8);
+          -webkit-box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+          box-shadow: inset 0 0 2px rgba(0,0,0,0.5);
+      }
+      ::-webkit-scrollbar-thumb:window-inactive {
+        background: rgba(180,180,180,0.4);
+      }
+      @font-face { font-family: "atkinson hyperlegible"; font-display: swap;  src: url("https://kreativekommunikationskonzepte.de/wp-content/uploads/et-fonts/Atkinson-Hyperlegible-Regular-102.ttf") format("truetype"); }
+    </style>
+  </head>
+<body>
+<div id="elm"></div>
+<script>
+  const a = document.createElement("a");
+  var app = Elm.Intro.Sofa.init({
+    node: document.getElementById('elm'),
+    flags :
+    { width  : Math.max(document.documentElement.clientWidth,   window.innerWidth  || 0)
+    , height : Math.max(document.documentElement.clientHeight,  window.innerHeight || 0)
+    , userLang : navigator.language || navigator.userLanguage
+    , urlParam : window.location.search
+    , lastUrl : localStorage.getItem("lastUrl") || ""
+    , thisUrl : window.location.href
+    , supportsARQL : a.relList.supports("ar")
+    }
+  });
+  localStorage.setItem("lastUrl", window.location.href);
+</script>
+</body>
+</html>
