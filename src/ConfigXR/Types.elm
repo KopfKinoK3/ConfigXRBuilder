@@ -4,7 +4,7 @@ module ConfigXR.Types exposing
     , AnimationMeta
     , SubdivisionScheme(..)
     , Interpolation(..)
-    , Texture, defaultTx
+    , Texture, defaultTx, scaledTx
     , Mesh
     , SkelAnim
     , Xform
@@ -43,9 +43,8 @@ module ConfigXR.Types exposing
     , defaultTranslations
     , defaultAnimMeta
     , origin
-    , verticalOrientation
+    , verticalOrientation, verticalOrientationBlender
     , floorOrientation
-    , blenderOrientation
     )
 
 import Dict exposing (Dict)
@@ -167,13 +166,17 @@ type alias Texture =
     , pixelScale: Maybe (List Float)
     , useSecondUV: Bool
     , scale: Maybe (List Float)
-    , rotation: Maybe (List Float)
+    , rotation: Maybe Float
     , translation: Maybe (List Float)
     }
 
 defaultTx : String -> Int -> Texture
 defaultTx path mapNr =
     Texture path Nothing Nothing (mapNr == 1) Nothing Nothing Nothing
+
+scaledTx : String -> Int -> Float -> Texture
+scaledTx path mapNr scale =
+    Texture path Nothing Nothing (mapNr == 1) (Just [scale, scale]) Nothing Nothing
 
 
 type alias UsdInput =
@@ -412,6 +415,7 @@ type alias ConfigScene =
 type UsdTrigger
     = TapGesture String
     | SceneTransition String
+    | Notification String
 
 
 type UsdAction
@@ -420,6 +424,7 @@ type UsdAction
     | Transform { absolute: Bool, duration: Float, xformTarget: String, affected: String }
     | LookAtCamera { duration: Float, front: (Float, Float, Float), upVector: (Float, Float, Float), affected: List String }
     | StartAnimation { affected: List String }
+    | Notify { affected: List String, identifier: String }
 
 
 type alias UsdBehavior =

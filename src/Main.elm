@@ -365,11 +365,11 @@ usdMaterial prefix name mat =
                 [] -> (False, [])
                 txList ->
                     (True
-                    , List.filter
-                        (\(_, tx) ->
+                    , List.filterMap
+                        (\(id, tx) ->
                             case (tx.rotation, tx.scale, tx.translation) of
-                                ( Nothing, Nothing, Nothing ) -> False
-                                _ -> True
+                                ( Nothing, Nothing, Nothing ) -> Nothing
+                                _ -> Just (id, tx)
                         )
                         txList
                     )
@@ -403,15 +403,30 @@ usdMaterial prefix name mat =
         , "}"
         ]
       ++( List.map
-            (\(id, tx) ->
+            (\(id, tex) ->
+                let
+                    suffix= if tex.useSecondUV then "1" else ""
+                in
                 String.join "\n"
-                    [ "def Shader \"transform2d"++ id ++"\""
+                    [ "def Shader \"transform2d_"++ id ++"\""
                     , "{"
                     , "uniform token info:id = \"UsdTransform2d\""
-                    , "float2 inputs:in.connect = <" ++ prefix ++ "/" ++ name ++ "/"++ id ++"_texture.outputs:result>"
-                    , "float inputs:rotation = (0.0)"
-                    , "float2 inputs:scale = (1.0, 1.0)"
-                    , "float2 inputs:translation = (0.0, 0.0)"
+                    , "float2 inputs:in.connect = <" ++ prefix ++ "/" ++ name ++ "/texCoordReader" ++ suffix ++ ".outputs:result>"
+                    , "float inputs:rotation = " ++ (
+                        case tex.rotation of
+                            Nothing -> "0.0"
+                            Just rot -> String.fromFloat rot
+                    )
+                    , "float2 inputs:scale = " ++ (
+                        case tex.scale of
+                            Just [u,v] -> "( " ++ String.fromFloat u ++ ", " ++ String.fromFloat v ++ " )"
+                            _ -> "(1.0, 1.0)"
+                    )
+                    , "float2 inputs:translation = " ++ (
+                        case tex.translation of
+                            Just [u,v] -> "( " ++ String.fromFloat u ++ ", " ++ String.fromFloat v ++ " )"
+                            _ -> "(0.0, 0.0)"
+                    )
                     , "float2 outputs:result"
                     , "}"
                     ]
@@ -455,7 +470,11 @@ usdMaterial prefix name mat =
                                         Just p -> usdPixel p
                                 )
                                 , "asset inputs:file = @" ++ tex.file ++"@"
-                                , "float2 inputs:st.connect = <" ++ prefix ++ "/"++ name ++"/texCoordReader"++ suffix ++".outputs:result>"
+                                , case (tex.scale, tex.rotation, tex.translation) of
+                                    (Nothing, Nothing, Nothing) ->
+                                        "float2 inputs:st.connect = <" ++ prefix ++ "/"++ name ++"/texCoordReader"++ suffix ++".outputs:result>"
+                                    _ ->
+                                        "float2 inputs:st.connect = <" ++ prefix ++ "/"++ name ++"/transform2d_"++  input.id ++ ".outputs:result>"
                                 , if String.contains "," input.values
                                     then "float outputs:rgb"
                                     else "float outputs:r"
@@ -696,14 +715,13 @@ usdPlace path name visible overwriteRef xForm physics =
 prepend apiSchemas = ["Preliminary_PhysicsColliderAPI"]
 ) {
 rel material:binding = """++ path ++ name ++ "/PhysicsMaterial>\n" 
-    {- ++ "token visibility = \"" ++ (if visible then "inherited" else "invisible") ++ "\"\n" -} 
+    --++ "token visibility = \"" ++ (if visible then "inherited" else "invisible") ++ "\"\n"    -- TODO visibility
     ++ usdXformBlock xForm ++ """
 def Xform "Generated" (
 prepend references = """ ++ 
     Maybe.withDefault ("</AssetFactories/Masters/Factories/PrimitiveShapeAssetFactory_" ++ name ++ ">") overwriteRef
     ++"""
 ) {}
-def Xform "Children" {}
 def Material "PhysicsMaterial" (
 prepend apiSchemas = ["Preliminary_PhysicsMaterialAPI"]
 ) {
@@ -713,8 +731,7 @@ uniform double preliminary:physics:material:restitution = """ ++ String.fromFloa
 }
 over """
     ++ shape ++ """ "collider" {
-float3[] extent = """
-    ++ usd3dList physics.extent ++ """
+float3[] extent = """ ++ usd3dList physics.extent ++ """
 uniform token purpose = "guide"
 """ ++ extra ++ "\n"
     ++ usdXformBlock physics.xForm 
@@ -1069,6 +1086,13 @@ usdAction prefix name action =
             , "double start = 0"
             , "}"
             ]
+        Notify t ->
+            [ "def Preliminary_Action \""++ name ++"\" {"
+            , "token info:id = \"NotificationAction\""
+            , "rel affectedObjects = [ </Root> ]"   --TODO how to signal the Browser ?
+            , "uniform string identifier = \""++ t.identifier ++"\""
+            , "}"
+            ]
 
 
 usdTrigger : String -> UsdTrigger -> String
@@ -1080,6 +1104,8 @@ usdTrigger name trigger =
                 "token info:id = \"TapGesture\"\nrel affectedObjects = " ++ o
             SceneTransition x ->
                 "token info:id = \"SceneTransition\"\ntoken type = \""++ x ++"\""
+            Notification i ->
+                "token info:id = \"NotificationTrigger\"\nuniform string identifier = \""++ i ++"\""
         , "}"
         ]
 
@@ -1390,7 +1416,7 @@ behaviorsForSelectToggle scene item =
                 )
             else
                 ( "CodeInactive"++name
-                , justHide 
+                , justHide
                     [ urlPath++"Look_"
                       ++ Tuple.first item.startGrpLook
                       ++ "_"
@@ -1468,6 +1494,7 @@ behaviorsForSelectToggle scene item =
             , TapGesture (uiPath++"OFF>")
             , TapGesture (uiPath++"StateOFF>")
             --, TapGesture (uiPath++"ONText>")
+            -- TODO, Notification (name ++ "=ON")
             ]
         , actionRoot=
           Group { parallel= False, loop= False, performCount= 1, actions= 
@@ -1513,6 +1540,7 @@ behaviorsForSelectToggle scene item =
             , TapGesture (uiPath++"ON>")
             , TapGesture (uiPath++"StateON>")
             --, TapGesture (uiPath++"OFFText>")
+            -- TODO, Notification (name ++ "=OFF")
             ]
         , actionRoot=
           Group { parallel= False, loop= False, performCount= 1, actions= 
@@ -1601,10 +1629,12 @@ behaviorsForSelectToggle scene item =
             (\outerGroup ->
                 List.map
                     (\look ->
-                        { id= "Select_"++name ++ "_"++ outerGroup.id ++"_"++look.id 
+                        { id= "Select_"++name ++ "_"++ outerGroup.id ++"_"++look.id
                         , exclusive= True
                         , triggers=
-                            [ TapGesture (panelPath ++ "Panel_" ++ outerGroup.id ++ "/Children/Pick_"++ look.id ++">") ]
+                            [ TapGesture (panelPath ++ "Panel_" ++ outerGroup.id ++ "/Children/Pick_"++ look.id ++">")
+                            -- TODO, Notification (name ++ "=" ++ outerGroup.id ++ "_" ++look.id)
+                            ]
                         , actionRoot= 
                             Group { parallel= False, loop= False, performCount= 1, actions= 
                                 [ ( "HideOthers"
@@ -1869,9 +1899,9 @@ behaviorsForSelect scene item =
                                     Just 
                                         ( "Look_"++look.id
                                         , justHide 
-                                            [ (objPath++"Instance_" ++ suffix)
-                                            , (uiPath++"SelectLabels/Children/Look_" ++ suffix)
+                                            [ (uiPath++"SelectLabels/Children/Look_" ++ suffix)
                                             , (urlPath++"Look_" ++ suffix)
+                                            , (objPath++"Instance_" ++ suffix)    -- TODO visible
                                             ]
                                         )
                                 else
@@ -1951,7 +1981,9 @@ behaviorsForSelect scene item =
                         { id= "Select_"++name ++ "_"++ outerGroup.id ++"_"++look.id 
                         , exclusive= True
                         , triggers=
-                            [ TapGesture (panelPath ++ "Panel_" ++ outerGroup.id ++ "/Children/Pick_"++ look.id ++">") ]
+                            [ TapGesture (panelPath ++ "Panel_" ++ outerGroup.id ++ "/Children/Pick_"++ look.id ++">")
+                            -- TODO, Notification (name ++ "=" ++ outerGroup.id ++ "_" ++look.id)
+                            ]
                         , actionRoot= 
                             Group { parallel= True, loop= False, performCount= 1, actions= 
                                 [ ( "ShowLook"
@@ -3924,7 +3956,7 @@ update msg model =
                         (\i ->
                             let
                                 usdLookGroups item =
-                                  usdGroup ("Object_"++item.id) item.skelAnim item.xForm <| 
+                                  usdGroup ("Object_"++item.id) item.skelAnim item.xForm <|
                                     List.concatMap
                                         (\group ->
                                             List.map
@@ -3932,7 +3964,7 @@ update msg model =
                                                     usdPlace 
                                                         (path++"Object_"++item.id++"/Children/")
                                                         ("Instance_" ++ group.id ++ "_" ++ look.id)
-                                                        True
+                                                        ( (group.id, look.id) == item.startGrpLook ) -- TODO visible
                                                         (Just ("</AssetFactories/Masters/Factories/PrimitiveShapeAssetFactory_Object_"++item.id++"_"++group.id++"_"++look.id++">"))
                                                         origin
                                                         item.physics
@@ -3951,7 +3983,7 @@ update msg model =
                                         )
                                         <| List.indexedMap Tuple.pair item.xForms
                                 Toggle item ->
-                                    [ usdPlace path ("Object_"++item.id) True Nothing item.xForm item.physics ]
+                                    [ usdPlace path ("Object_"++item.id) item.startActive Nothing item.xForm item.physics ]
                                 Select item ->
                                     usdLookGroups item
                                 SelectToggle item ->
@@ -6374,7 +6406,7 @@ textureEncoder tx =
         , ( "pixelScale",   Json.Encode.Extra.maybe (Encode.list Encode.float) tx.pixelScale )
         , ( "useSecondUV",  Encode.bool tx.useSecondUV )
         , ( "scale",        Json.Encode.Extra.maybe (Encode.list Encode.float) tx.scale )
-        , ( "rotation",     Json.Encode.Extra.maybe (Encode.list Encode.float) tx.rotation )
+        , ( "rotation",     Json.Encode.Extra.maybe Encode.float tx.rotation )
         , ( "translation",  Json.Encode.Extra.maybe (Encode.list Encode.float) tx.translation )
         ]
 
@@ -6386,7 +6418,7 @@ textureDecoder =
         |> required "pixelScale" (maybe (list float))
         |> required "useSecondUV" bool
         |> required "scale" (maybe (list float))
-        |> required "rotation" (maybe (list float))
+        |> required "rotation" (maybe float)
         |> required "translation" (maybe (list float))
 
 usdInputDecoder : Decoder UsdInput
@@ -6749,6 +6781,12 @@ usdzip Test.usdz Test.usdc ao/* opacity/runner.jpg
 
 Standard Intro-Test:
 https://www.kreativekk.de/Swivel.html?CABAREBEYN
+
+
+----
+usdcat -o Test.usdc Test.usda      
+usdcat -o Test.usda Test.usdc      
+usdzip Ganda.usdz Test.usdc ganda/*
 
 -}
 

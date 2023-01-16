@@ -1,0 +1,9 @@
+*.elmi
+*.elmo
+node_modules/*
+elm-stuff/*
+recherche/*
+src-tauri/*
+*.lock
+*.svg
+Was kann ConfigXR derzeit.pages
