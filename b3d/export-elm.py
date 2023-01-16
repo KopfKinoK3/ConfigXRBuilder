@@ -6,7 +6,7 @@ def fl_str(l): # formatted list to string
     lenght= 24
     for s in sl[:-1]:
         lenght += len(s) + 2
-        if lenght > 155:
+        if lenght > 124:
             ol.append(s + '\n    , ')
             lenght= 6
         else:
